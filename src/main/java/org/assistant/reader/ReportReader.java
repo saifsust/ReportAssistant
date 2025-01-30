@@ -17,6 +17,10 @@ import static org.assistant.constants.AppConstants.RESOURCE_SUB_PATH;
 
 public class ReportReader {
 
+    public List<String> getColumnValues(String line) {
+        return Arrays.stream(line.split(",")).map(String::trim).toList();
+    }
+
     public List<ImmutablePair<List<String>, List<String>>> getActualToExpected(ReportVO reportVO) {
         return getActualToExpectedReader(reportVO)
                 .stream()
