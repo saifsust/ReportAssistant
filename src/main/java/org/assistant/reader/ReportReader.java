@@ -6,10 +6,21 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.assistant.model.ReportVO;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -17,11 +28,32 @@ import static org.assistant.constants.AppConstants.RESOURCE_SUB_PATH;
 
 public class ReportReader {
 
-    public List<String> getColumnValues(String line) {
-        return Arrays.stream(line.split(",")).map(String::trim).toList();
+    public List<ImmutablePair<List<List<String>>, List<List<String>>>> getAllCsvInDirActualToExpectedCsvColumnDataFromAllRows(
+            ReportVO reportVO
+    ) {
+        return getAllCsvInDirActualToExpectedCsvLines(
+                reportVO
+        )
+                .stream()
+                .map(actualToExpectedCsvLines -> new ImmutablePair<List<List<String>>, List<List<String>>>(
+                        getColumnDataFromCsvRow(actualToExpectedCsvLines.getLeft()),
+                        getColumnDataFromCsvRow(actualToExpectedCsvLines.getRight())
+                ))
+                .toList();
     }
 
-    public List<ImmutablePair<List<String>, List<String>>> getActualToExpected(ReportVO reportVO) {
+    private List<List<String>> getColumnDataFromCsvRow(List<String> csvRows) {
+        return csvRows
+                .stream()
+                .map(csvRow -> getColumnValues(csvRow))
+                .toList();
+    }
+
+    private List<String> getColumnValues(String csvRow) {
+        return Arrays.stream(csvRow.split(",")).map(String::trim).toList();
+    }
+
+    private List<ImmutablePair<List<String>, List<String>>> getAllCsvInDirActualToExpectedCsvLines(ReportVO reportVO) {
         return getActualToExpectedReader(reportVO)
                 .stream()
                 .map(actualToExpectedReader -> new ImmutablePair<>(
@@ -57,9 +89,9 @@ public class ReportReader {
         return actualReports
                 .stream()
                 .map(actualReport -> getActualToExpectedReportReader(
-                        actualReport,
-                        expectedFileNameToReport.get(actualReport.getName()),
-                        reportVO.getEncoding()
+                                actualReport,
+                                expectedFileNameToReport.get(actualReport.getName()),
+                                reportVO.getEncoding()
                         )
                 )
                 .toList();
@@ -105,7 +137,7 @@ public class ReportReader {
                     .map(Path::getParent)
                     .map(Path::toString)
                     .flatMap(parentDir -> Arrays.stream(
-                            Objects.requireNonNull(new File(parentDir).listFiles(filter))
+                                    Objects.requireNonNull(new File(parentDir).listFiles(filter))
                             ).filter(File::isFile)
                     )
                     .toList();
