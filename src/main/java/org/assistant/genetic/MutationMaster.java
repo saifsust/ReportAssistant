@@ -29,7 +29,7 @@ public class MutationMaster {
 
         return List.of(
                 firstGeneration.toBuilder()
-                        .expectedCsvRow(secondGenerationExpectedRow)
+                        .actualCsvRow(secondGenerationActualRow)
                         .fitness(
                                 FitnessCalculator.getFitness(
                                         similarityBetweenFirstGenerationActualAndSecondGenerationExpected
@@ -41,7 +41,7 @@ public class MutationMaster {
                         .build(),
 
                 secondGeneration.toBuilder()
-                        .expectedCsvRow(firstGenerationExpectedRow)
+                        .actualCsvRow(firstGenerationActualRow)
                         .fitness(
                                 FitnessCalculator.getFitness(
                                         similarityBetweenSecondGenerationActualAndFirstGenerationExpected

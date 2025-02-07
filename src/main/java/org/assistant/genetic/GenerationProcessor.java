@@ -8,10 +8,12 @@ import org.assistant.model.ReportVO;
 import org.assistant.reader.ReportReader;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import static org.assistant.constants.AppConstants.MAX_GENERATION_EVOLUTION;
 import static org.assistant.constants.AppConstants.PER_COLUMN_WEIGHT_IN_PERCENTAGE_SCALE;
 
 @RequiredArgsConstructor
@@ -30,38 +32,54 @@ public class GenerationProcessor {
         for (int report = 0; report < actualToExpectedReports.size(); report++) {
             ImmutablePair<List<List<String>>, List<List<String>>> actualToExpected = actualToExpectedReports.get(report);
 
-            List<Chromosome> chromosomes = getChromosomes(actualToExpected.getLeft());
-            List<Chromosome> newBornChildren = getSortedCrossedChildren(chromosomes);
+            List<Chromosome> chromosomes = getPopulation(
+                    actualToExpected.getRight()
+            );
 
             MutationMaster master = new MutationMaster(actualToExpected.getLeft(), actualToExpected.getRight());
 
-            List<Chromosome> hundredPercentFittestChildren = new ArrayList<>();
+            List<Chromosome> newlyBornChildren = getCrossover(
+                    getCrossover(chromosomes)
+            );
 
-            int noHundredPercentFittestChild = newBornChildren.size() - 1;
             double hundredPercentFittestWeight = PER_COLUMN_WEIGHT_IN_PERCENTAGE_SCALE * getColumnsCount(actualToExpected.getLeft());
+            int evolution = 0;
+            int firstChildren = 0;
+            double bestFitness = 0.0;
+            List<Chromosome> bestFittestGenerations = new ArrayList<>();
 
-            while (!newBornChildren.isEmpty()) {
-                if (newBornChildren.get(noHundredPercentFittestChild).getFitness() == hundredPercentFittestWeight) {
-                    hundredPercentFittestChildren.add(
-                            newBornChildren.remove(noHundredPercentFittestChild)
-                    );
-                    --noHundredPercentFittestChild;
-                }
+            System.out.println(newlyBornChildren);
+            while (evolution < MAX_GENERATION_EVOLUTION && (bestFittestGenerations.isEmpty() || bestFittestGenerations.get(firstChildren).getFitness() < hundredPercentFittestWeight)) {
+                System.out.println(newlyBornChildren);
+                List<Chromosome> mutatedChildren = getMutatedChildren(newlyBornChildren, master);
 
-                List<Chromosome> mutatedChildren = getMutatedChildren(newBornChildren, master);
-
-                newBornChildren.clear();
-
-                newBornChildren.addAll(
+                newlyBornChildren.clear();
+                newlyBornChildren.addAll(
                         mutatedChildren
                 );
+
+                ++evolution;
+                double overallFitness = getOverallFitness(newlyBornChildren);
+
+                if (bestFitness < overallFitness) {
+                    bestFittestGenerations.clear();
+                    bestFittestGenerations.addAll(newlyBornChildren);
+                    bestFitness = overallFitness;
+                }
             }
 
-            generations.add(new ImmutablePair<>(String.format("report : %d", report), hundredPercentFittestChildren));
+            generations.add(new ImmutablePair<>(String.format("report : %d", report), bestFittestGenerations));
 
         }
 
         return generations;
+    }
+
+    private double getOverallFitness(List<Chromosome> newlyBornChildren) {
+        return newlyBornChildren
+                .stream()
+                .mapToDouble(Chromosome::getFitness)
+                .sum();
     }
 
     private long getColumnsCount(List<List<String>> actualCsvColumnData) {
@@ -69,20 +87,21 @@ public class GenerationProcessor {
                 .findFirst()
                 .filter(ObjectUtils::isNotEmpty)
                 .stream()
+                .flatMap(Collection::stream)
                 .count();
 
 
     }
 
     // TODO: if rows are not same  between files. need to add that case.
-    private List<Chromosome> getChromosomes(List<List<String>> actualCsvColumnData) {
+    private List<Chromosome> getPopulation(List<List<String>> expectedCsvData) {
         List<Chromosome> chromosomes = new ArrayList<>();
-        for (int column = 0; column < actualCsvColumnData.size(); column++) {
+        for (int row = 0; row < expectedCsvData.size(); row++) {
             chromosomes.add(
                     Chromosome.builder()
-                            .expectedCsvRow(column)
-                            .actualCsvRow(column)
-                            .fitness(0)
+                            .expectedCsvRow(row)
+                            .actualCsvRow(row)
+                            .fitness(0.0)
                             .columnsSimilarityInPercentageScale(new ArrayList<>())
                             .build()
             );
@@ -92,51 +111,55 @@ public class GenerationProcessor {
     }
 
     private List<Chromosome> getMutatedChildren(List<Chromosome> chromosomes, MutationMaster master) {
-        if (chromosomes.size() == 1) {
-            return chromosomes;
-        }
 
-        List<Chromosome> children = new ArrayList<>();
-        for (int generation = 0; generation < chromosomes.size(); generation++) {
-            Chromosome firstGeneration = chromosomes.get(random.nextInt(chromosomes.size()));
-            Chromosome secondGeneration = chromosomes.get(random.nextInt(chromosomes.size()));
-            children.addAll(
+        Collections.shuffle(chromosomes);
+        List<Chromosome> newGenerations = new ArrayList<>();
+
+        for (int generation = 0; generation < chromosomes.size() - 1; generation += 2) {
+            Chromosome firstGeneration = chromosomes.get(generation);
+            Chromosome secondGeneration = chromosomes.get(generation + 1);
+
+            newGenerations.addAll(
                     master.getCrossMutatedGenerations(firstGeneration, secondGeneration)
             );
         }
-        return children;
+
+        if (chromosomes.size() % 2 == 1) {
+            newGenerations.add(chromosomes.get(chromosomes.size() - 1));
+        }
+
+        Collections.sort(newGenerations);
+        return newGenerations;
     }
 
-    private List<Chromosome> getSortedCrossedChildren(List<Chromosome> chromosomes) {
+    private List<Chromosome> getCrossover(List<Chromosome> chromosomes) {
+        Collections.shuffle(chromosomes);
+
         List<Chromosome> children = new ArrayList<>();
 
-        for (int generation = 0; generation < chromosomes.size(); generation++) {
-            Chromosome male = chromosomes.get(random.nextInt(chromosomes.size()));
-            Chromosome female = chromosomes.get(random.nextInt(chromosomes.size()));
+        for (int parent = 0; parent < chromosomes.size() - 1; parent += 2) {
+            Chromosome father = chromosomes.get(parent);
+            Chromosome mother = chromosomes.get(parent + 1);
             children.addAll(
-                    getCrossBetween(male, female)
+                    getChildren(father, mother)
             );
         }
 
-        Collections.sort(children);
+        if (chromosomes.size() % 2 == 1) {
+            children.add(chromosomes.get(chromosomes.size() - 1));
+        }
 
         return children;
     }
 
-    private List<Chromosome> getCrossBetween(Chromosome male, Chromosome female) {
-        int firstGenerationExpectedRow = male.getExpectedCsvRow();
-        int secondGenerationExpectedRow = female.getExpectedCsvRow();
-
+    private List<Chromosome> getChildren(Chromosome male, Chromosome female) {
         return List.of(
                 male.toBuilder()
-                        .expectedCsvRow(secondGenerationExpectedRow)
+                        .actualCsvRow(female.getActualCsvRow())
                         .build(),
-
                 female.toBuilder()
-                        .expectedCsvRow(firstGenerationExpectedRow)
+                        .actualCsvRow(male.getActualCsvRow())
                         .build()
         );
     }
-
-
 }

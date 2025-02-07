@@ -29,7 +29,12 @@ public class ReportAssistantApp {
 
             System.out.println(reportNameToSimilarResult.getLeft() + ": ");
             reportNameToSimilarResult.getRight()
-                    .forEach(chromosome -> System.out.println(chromosome.getColumnsSimilarityInPercentageScale()));
+                    .stream()
+                    .sorted((child1, child2)->child1.getExpectedCsvRow()-child2.getExpectedCsvRow())
+                    .forEach(chromosome -> {
+                        System.out.printf("row : %d -> %d\t", chromosome.getExpectedCsvRow(), chromosome.getActualCsvRow());
+                        System.out.println(chromosome.getColumnsSimilarityInPercentageScale());
+                    });
 
         }
     }
