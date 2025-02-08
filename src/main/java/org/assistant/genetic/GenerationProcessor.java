@@ -10,6 +10,7 @@ import org.assistant.reader.ReportReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 
@@ -42,7 +43,10 @@ public class GenerationProcessor {
                     getCrossover(chromosomes)
             );
 
-            double hundredPercentFittestWeight = PER_COLUMN_WEIGHT_IN_PERCENTAGE_SCALE * getColumnsCount(actualToExpected.getLeft());
+            int maxRows = actualToExpected.getRight().size();
+            long maxColumns = getColumnsCount(actualToExpected.getRight());
+            double hundredPercentFittestWeight = PER_COLUMN_WEIGHT_IN_PERCENTAGE_SCALE * ((maxColumns * 1.0 * (maxColumns + 1)) / 2);
+
             int evolution = 0;
             int firstChildren = 0;
             double bestFitness = 0.0;
@@ -55,7 +59,7 @@ public class GenerationProcessor {
 
                 newlyBornChildren.clear();
                 newlyBornChildren.addAll(
-                        mutatedChildren
+                        getBestFittestPopulationToCompareNextColumn(mutatedChildren, maxRows)
                 );
 
                 ++evolution;
@@ -93,6 +97,25 @@ public class GenerationProcessor {
 
     }
 
+    private List<Chromosome> getBestFittestPopulationToCompareNextColumn(List<Chromosome> populations, int maxRows) {
+        return populations
+                .stream()
+                .map(child -> buildAndGetNextColumnChild(child, maxRows))
+                .toList();
+    }
+
+    private Chromosome buildAndGetNextColumnChild(Chromosome chromosome, int maxRows) {
+        int column = chromosome.getColumn();
+        if (chromosome.getComparedActualRows().size() == maxRows) {
+            chromosome.getComparedActualRows().clear();
+            return chromosome.toBuilder()
+                    .column(column + 1)
+                    .build();
+        }
+        return chromosome;
+    }
+
+
     // TODO: if rows are not same  between files. need to add that case.
     private List<Chromosome> getPopulation(List<List<String>> expectedCsvData) {
         List<Chromosome> chromosomes = new ArrayList<>();
@@ -102,7 +125,9 @@ public class GenerationProcessor {
                             .expectedCsvRow(row)
                             .actualCsvRow(row)
                             .fitness(0.0)
-                            .columnsSimilarityInPercentageScale(new ArrayList<>())
+                            .columnsSimilarityInPercentageScale(new HashSet<>())
+                            .comparedActualRows(new HashSet<>())
+                            .column(0)
                             .build()
             );
         }

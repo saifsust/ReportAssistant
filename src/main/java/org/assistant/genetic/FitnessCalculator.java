@@ -2,8 +2,8 @@ package org.assistant.genetic;
 
 import lombok.experimental.UtilityClass;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.assistant.constants.AppConstants.PER_COLUMN_WEIGHT_IN_PERCENTAGE_SCALE;
 
@@ -12,22 +12,18 @@ public class FitnessCalculator {
 
     // TODO: more accurate algorithm will be implemented.
     // TODO: if columns are not same. need to implement that algorithm
-    public static List<Double> getSimilarityInPercentageScaleBetween(List<String> actualGenerationColumnData, List<String> expectedGenerationColumnData) {
-        List<Double> similarityInPercentageScale = new ArrayList<>();
-        for (int column = 0; column < expectedGenerationColumnData.size(); column++) {
-            if (expectedGenerationColumnData.get(column).equals(actualGenerationColumnData.get(column))) {
-                similarityInPercentageScale.add(PER_COLUMN_WEIGHT_IN_PERCENTAGE_SCALE);
-            } else {
-                //TODO: more accurate algorithm will be implemented
-                similarityInPercentageScale.add(
-                        0.0
-                );
-            }
+    public static double getSimilarityInPercentageScaleBetween(
+            int column,
+            List<String> actualGenerationColumnData,
+            List<String> expectedGenerationColumnData
+    ) {
+        if (expectedGenerationColumnData.get(column).equals(actualGenerationColumnData.get(column))) {
+            return (column + 1) * PER_COLUMN_WEIGHT_IN_PERCENTAGE_SCALE;
         }
-        return similarityInPercentageScale;
+        return 0.0;
     }
 
-    public static double getFitness(List<Double> similarityInPercentageScaleBetweenActualAndExpectedGeneration) {
+    public static double getFitness(Set<Double> similarityInPercentageScaleBetweenActualAndExpectedGeneration) {
         return similarityInPercentageScaleBetweenActualAndExpectedGeneration
                 .stream()
                 .mapToDouble(Double::doubleValue)

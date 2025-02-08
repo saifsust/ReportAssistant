@@ -6,7 +6,9 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @ToString
@@ -15,7 +17,9 @@ public class Chromosome implements Comparable<Chromosome> {
     private Double fitness;
     private int expectedCsvRow;
     private int actualCsvRow;
-    private List<Double> columnsSimilarityInPercentageScale = new ArrayList<>();
+    private int column;
+    private Set<Integer> comparedActualRows = new HashSet<>();
+    private Set<Double> columnsSimilarityInPercentageScale = new HashSet<>();
 
     @Override
     public int compareTo(Chromosome oldGeneration) {
